@@ -3,9 +3,9 @@ Get up and running with large language models running in a VM for close to zero 
 
 You should have at least 8 GB of RAM available to run the 7B models.
 
-You need to already have 'sudo dnf group info virtualization' installed
-This will install virt-lightning https://github.com/virt-lightning/virt-lightning
-This will install in the VM https://ollama.com/ https://github.com/ollama/ollama with openchat model 
+You need to already have 'sudo dnf group info virtualization' installed <br />
+This will install virt-lightning https://github.com/virt-lightning/virt-lightning <br />
+This will install in the VM https://ollama.com/ https://github.com/ollama/ollama with openchat model <br />
 
 Put vlo.yml and ollama.yml files in your home directory
 Run below to install:
