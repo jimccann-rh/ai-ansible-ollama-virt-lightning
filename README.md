@@ -7,10 +7,10 @@ You need to already have 'sudo dnf group info virtualization' installed <br />
 This will install virt-lightning https://github.com/virt-lightning/virt-lightning <br />
 This will install in the VM https://ollama.com/ https://github.com/ollama/ollama with openchat model <br />
 
-Put vlo.yml and ollama.yml files in your home directory
+Put **vlo.yml** and **ollama.yml** files in your home directory
 Run below to install:
 
-ansible-playbook vlo.yml -K
+**ansible-playbook vlo.yml -K**
 
 
 I was testing AI to help me make these ansible scripts.
