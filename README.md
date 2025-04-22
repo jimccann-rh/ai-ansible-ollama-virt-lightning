@@ -20,3 +20,5 @@ If you want to just test AI LLM with podman do below commands:
 [jimccann@jimccann-thinkpadp1gen3$ podman run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama
 [jimccann@jimccann-thinkpadp1gen3$ podman exec -it ollama ollama run openchat
 
+
+This was done/run on Fedora Linux
