@@ -1,0 +1,125 @@
+---
+- name: Setup virt-lightning and ollama
+  hosts: localhost # Changed to run on the local machine
+  gather_facts: yes        # Keep gather_facts enabled for other facts
+
+  tasks:
+    - name: Get current user running the playbook
+      ansible.builtin.command: whoami
+      register: current_user_command_result
+      changed_when: false # This command doesn't change the system state
+
+    - name: Set fact for current user
+      ansible.builtin.set_fact:
+        current_user: "{{ current_user_command_result.stdout }}"
+
+    - name: Install virt-lightning package
+      ansible.builtin.dnf:
+        name: virt-lightning
+        state: present
+      become: true
+
+    - name: Create virt-lightning config directory in user's home
+      ansible.builtin.file:
+        path: "~/.config/virt-lightning"
+        state: directory
+        mode: '0755'
+
+    - name: Create config.ini file in user's virt-lightning config directory
+      ansible.builtin.copy:
+        content: |
+          [main]
+          root_password = passw0rd
+        dest: "~/.config/virt-lightning/config.ini"
+        mode: '0644' # Set appropriate file permissions
+
+    - name: Create virt-lightning.yaml file in user's home directory
+      ansible.builtin.copy:
+        content: |
+          - distro: fedora-41
+            memory: 8096
+        dest: "~/virt-lightning.yaml"
+        mode: '0644' # Set appropriate file permissions
+
+    - name: Create virt-lightning pool upstream directory
+      ansible.builtin.file:
+        path: /var/lib/virt-lightning/pool/upstream
+        state: directory
+        mode: '0755' # Setting a default mode during creation, will be changed later
+      become: true
+
+    - name: Change ownership of /var/lib/virt-lightning/pool recursively to qemu:qemu
+      ansible.builtin.file:
+        path: /var/lib/virt-lightning/pool
+        owner: qemu
+        group: qemu
+        state: directory
+        recurse: true
+      become: true
+
+    - name: Change ownership of /var/lib/virt-lightning/pool/upstream recursively to the current user
+      ansible.builtin.file:
+        path: /var/lib/virt-lightning/pool/upstream
+        owner: "{{ current_user }}" # Using the new current_user fact
+        group: "{{ current_user }}" # Using the new current_user fact
+        state: directory
+        recurse: true
+      become: true
+
+    - name: Change permissions of /var/lib/virt-lightning to 775
+      ansible.builtin.file:
+        path: /var/lib/virt-lightning
+        mode: '0775'
+        state: directory
+      become: true
+
+    - name: Change permissions of pool directories to 775
+      ansible.builtin.file:
+        path: "{{ item }}"
+        mode: '0775'
+        state: directory
+      loop:
+        - /var/lib/virt-lightning/pool
+        - /var/lib/virt-lightning/pool/upstream
+      become: true
+
+    - name: Run vl fetch fedora-41 command
+      ansible.builtin.command:
+        cmd: vl fetch fedora-41
+      args:
+        # Use 'creates' to make this task idempotent.
+        # Assumes fetching creates a file related to fedora-44 in the pool directory.
+        # You might need to adjust the 'creates' path based on where 'vl fetch' stores files.
+        creates: /var/lib/virt-lightning/pool/upstream/fedora-41.qcow2
+      # This command might need to run as the user who owns the pool directory
+      # or potentially as root depending on the 'vl' implementation.
+      # Adjust 'become' as necessary based on how 'vl fetch' needs to be run.
+      # If it needs to run as the ansible_user, set become: false.
+      # If it needs root, leave become: true (inherited from play).
+      # For now, assuming it needs root or can run with play's become: true.
+
+    - name: Run vl up command
+      ansible.builtin.command:
+        cmd: vl up
+      # Consider adding idempotency here if 'vl up' is not idempotent.
+      # For example, if 'vl up' creates a specific file or directory when successful,
+      # you could use 'creates: /path/to/indicator_file'.
+      # If running 'vl up' multiple times is harmless or desired, no 'creates' is needed.
+      # Adjust 'become' as necessary based on how 'vl up' needs to be run.
+      # It might need to run as the user who owns the VM configuration or as root.
+      # Inherits 'become: true' from the play by default.
+
+    - name: Generate Ansible inventory from virt-lightning
+      ansible.builtin.shell: |
+        vl ansible_inventory > oinventory
+
+    - name: Run ollama.yml playbook using the generated inventory
+      ansible.builtin.shell: |
+        ansible-playbook ollama.yml -i oinventory
+      register: ollama_playbook_output # Register the output of this command
+
+    - ansible.builtin.debug:
+        var: lookup('ansible.builtin.file', '~/ollama_hello_output.log')
+
+    - ansible.builtin.debug:
+        msg: "Run  'vl ssh fedora-41' and type 'ollama' to be interactive. When completed type 'vl down'"

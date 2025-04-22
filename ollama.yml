@@ -1,0 +1,49 @@
+---
+- name: Install and run Ollama
+  hosts: all # Replace with the host(s) where you want to install Ollama
+
+  tasks:
+    - name: Run Ollama installation script
+      ansible.builtin.shell: |
+        curl -fsSL https://ollama.com/install.sh | sh
+      args:
+        # Use 'creates' to make this task idempotent.
+        # Assumes the Ollama install script places the executable here.
+        creates: /usr/local/bin/ollama
+      # The installation script typically requires root privileges.
+      # This task inherits 'become: true' from the play.
+
+    - name: Pull the openchat model
+      ansible.builtin.command:
+        cmd: ollama pull openchat
+      #args:
+        # Ollama pull is generally idempotent - it won't re-download
+        # if the model is already present and up-to-date.
+        # No 'creates' needed unless you want to skip if *any* model exists.
+      # This command should run as a user who can interact with the ollama service.
+      # Depending on your setup, this might be root (if service runs as root)
+      # or a specific user. Inherits 'become: true' from the play.
+
+    - name: Run ollama with openchat and say "hello"
+      ansible.builtin.command:
+        cmd: ollama run openchat "hello"
+      register: ollama_hello_output # Register the output of this command
+      # args:
+        # Use 'creates' to make this task idempotent.
+        # creates: "~/ollama_hello_output.log"
+
+    - name: Save output of ollama run command to file
+      ansible.builtin.copy:
+        content: "Output of 'ollama run openchat \"hello\"':\n{{ ollama_hello_output.stdout }}" # Include a header and the standard output
+        dest: "~/ollama_hello_output.log" # Save to a file in the user's home directory
+        mode: '0644' # Set appropriate file permissions
+      # This task should run as the user who has permission to write to their home directory.
+      # Assuming this is the connecting ansible_user, set become: false.
+
+    - name: Fetch ollama_hello_output.log from remote host
+      ansible.builtin.fetch:
+        src: "~/ollama_hello_output.log" # Path to the file on the remote host
+        dest: "~/ollama_hello_output.log" # Local directory to save the file, organized by hostname
+        flat: yes # Set to yes to avoid creating a directory structure based on the remote path
+
+
