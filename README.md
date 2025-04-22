@@ -5,6 +5,7 @@ You should have at least 8 GB of RAM available to run the 7B models.
 
 You need to already have 'sudo dnf group info virtualization' installed <br />
 You need to already have 'sudo dnf info ansible' installed <br />
+
 This will install virt-lightning https://github.com/virt-lightning/virt-lightning <br />
 This will install in the VM https://ollama.com/ https://github.com/ollama/ollama with openchat model <br />
 
