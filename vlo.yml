@@ -38,6 +38,7 @@
         content: |
           - distro: fedora-41
             memory: 8096
+            root_disk_size: 30
         dest: "~/virt-lightning.yaml"
         mode: '0644' # Set appropriate file permissions
 
