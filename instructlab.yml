@@ -1,0 +1,90 @@
+---
+- name: Install common development tools and setup InstructLab using dnf
+  hosts: all # Replace with your Ansible inventory group or host that uses DNF (e.g., Fedora, CentOS, RHEL)
+  gather_facts: yes         # Keep gather_facts enabled to get ansible_user_dir
+
+  vars:
+    # Path where the Python virtual environment will be created
+    venv_path: "{{ ansible_user_dir }}/instructlab_venv"
+    # User to own the virtual environment and run pip installs
+    # This should typically be the user Ansible connects as, or a specific non-root user.
+    venv_owner: "{{ ansible_user }}"
+
+  tasks:
+    - name: Install development packages and python3.11-venv
+      ansible.builtin.dnf:
+        name:
+          - gcc
+          - gcc-c++
+          - make
+          - git-core
+          - python3.11
+          - python3.11-devel
+          #- python3.11-venv # Ensure venv module is available
+        state: present # Ensures the packages are installed
+      register: dnf_install_result
+      become: true             # Package installation requires elevated privileges (sudo/root)
+
+    - name: Display DNF installation results
+      ansible.builtin.debug:
+        var: dnf_install_result
+
+    - name: Create Python virtual environment for InstructLab
+      ansible.builtin.command:
+        cmd: "python3.11 -m venv --upgrade-deps {{ venv_path }}"
+      args:
+        creates: "{{ venv_path }}/bin/activate" # Idempotency check: only run if venv doesn't exist
+      become: true # Temporarily elevate to ensure venv creation permissions
+      become_user: "{{ venv_owner }}" # Run as the designated venv owner
+
+    - name: Install instructlab via pip in the virtual environment
+      ansible.builtin.pip:
+        name: instructlab
+        virtualenv: "{{ venv_path }}" # Target the virtual environment
+        virtualenv_python: "{{ venv_path }}/bin/python3.11" # Specify python executable within venv
+        state: present # Ensure instructlab is installed
+        #extra_args: "--install-option=\"--jobs=6\"" # Custom install option for pip
+      environment: # Added to set environment variables for the task
+        TMPDIR: "{{ venv_owner }}" # Set TMPDIR for the pip installation process
+        CPUCOUNT: 4
+      become: true # Temporarily elevate for pip module operations
+      become_user: "{{ venv_owner }}" # Run pip install as the designated venv owner
+      register: instructlab_pip_install_result
+
+    - name: Display InstructLab installation results
+      ansible.builtin.debug:
+        var: instructlab_pip_install_result
+
+    - name: Verify instructlab installation (optional)
+      ansible.builtin.command: "{{ venv_path }}/bin/ilab --version"
+      register: instructlab_version_check
+      changed_when: false # This command does not change the system state
+      become: true
+      become_user: "{{ venv_owner }}" # Run as the designated venv owner
+
+    - name: Show instructlab version
+      ansible.builtin.debug:
+        msg: "InstructLab version installed: {{ instructlab_version_check.stdout }}"
+
+    - name: Add ilab alias to .bashrc
+      ansible.builtin.lineinfile:
+        path: "{{ ansible_user_dir }}/.bashrc"
+        line: "alias ilab='{{ venv_path }}/bin/ilab'"
+        create: true # Create the file if it doesn't exist
+        mode: '0644' # Set file permissions
+      become: true
+      become_user: "{{ venv_owner }}" # Ensure this is run as the venv_owner to modify their .bashrc
+      # The 'insertafter: EOF' can be added if you want it at the very end,
+      # but 'lineinfile' is usually idempotent and places it correctly.
+
+#    - name: Model instructlab installation
+#      ansible.builtin.command: "{{ venv_path }}/bin/ilab model"
+#      register: instructlab_model_check
+#      changed_when: false # This command does not change the system state
+#      become: true
+#      become_user: "{{ venv_owner }}" # Run as the designated venv owner
+#
+    - name: Show instructlab commands to run
+      ansible.builtin.debug:
+        msg: "Once into system run 'ilab config init' then 'ilab model download' then ilab chat'"
+

@@ -1,0 +1,2 @@
+vl stop vlvm-fedora-41-AI && vl start --name vlvm-fedora-41-AI fedora-41 --disk 50 --vcpu 8 --memory 8096 &&  vl ansible_inventory > hosts.ini && ansible-playbook -i hosts.ini instructlab.yml &&  vl ssh vlvm-fedora-41-AI
+
